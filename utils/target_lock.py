@@ -3,6 +3,8 @@ from ultralytics import YOLO
 import numpy as np
 import torch
 from collections import deque
+from tabulate import tabulate
+import os
 
 class PersonDetection():
     def __init__(self, 
@@ -12,18 +14,19 @@ class PersonDetection():
         self.scale_percent = scale_percent
         self.conf_level = conf_level
 
-
         self.locked_id = None
         self.center_counts = {}
         self.fps = 30
-        self.lock_frames = 2 * self.fps  # 2 seconds to lock
+        self.lock_frames = 3 * self.fps  # 2 seconds to lock
         self.trajectories = {}
+        self.patience = 3 * self.fps
 
         self.class_IDS = [0]  # person only
         self.frame_num = 1
         self.model = YOLO('yolov8n.pt')
 
     def resize_frame(self, frame):
+        frame = cv2.flip(frame, 1)
         width = int(frame.shape[1] * self.scale_percent / 100)
         height = int(frame.shape[0] * self.scale_percent / 100)
         return cv2.resize(frame, 
@@ -43,8 +46,8 @@ class PersonDetection():
 
     def check_lock(self, frame, center_x, center_y, track_id):
         if self.is_in_center(frame, center_x, center_y):
-            self.center_counts[track_id] = self.center_counts.get(track_id
-                                                                  , 0) + 1
+            self.center_counts[track_id] = self.center_counts.get(track_id, 
+                                                                  0) + 1
         else:
             self.center_counts[track_id] = 0
 
@@ -70,8 +73,30 @@ class PersonDetection():
             else:
                 return "unlocked"
         elif self.locked_id == track_id:
-            dist_x = center_x - self.image_center[0]
-            print(f"Locked ID {track_id} | X distance from center: {dist_x}")
+            self.dist_x = center_x - self.image_center[0]
+            thr = self.image_center[0] - self.x_min
+            max_val = self.image_center[1]
+            dist = abs(self.dist_x)
+
+            if dist <= thr:
+                self.mc_number = 0
+            else:
+                self.mc_number = 0.3 + 0.7 * ((dist - thr) / (max_val - thr))
+                self.mc_number = min(self.mc_number, 1.0)  # clip at 1
+
+            if self.dist_x < 0:
+                self.turn_direction = "left"
+            else:
+                self.turn_direction = "right"
+
+            data = [[track_id, self.dist_x, 
+                     self.mc_number, self.turn_direction]]
+            headers = ["Locked ID", "X Distance", 
+                       "Motor Speed", "Turn Direction"]
+
+            print("\033[H\033[J", end="")  # ANSI clear
+            print(tabulate(data, headers=headers, tablefmt="fancy_grid"))
+            
             return "locked"
         return "unlocked"
 
@@ -92,6 +117,14 @@ class PersonDetection():
         # Draw trajectory points
         for (cx, cy) in self.trajectories[track_id]:
             cv2.circle(frame, (cx, cy), 3, color, -1)
+
+        # if not self.state == "locked":
+        # Draw lock box
+        cv2.rectangle(frame, 
+                    (self.x_min, self.y_min - 10), 
+                    (self.x_max, self.y_max + 10), 
+                    (125, 125, 125), 
+                    2)
 
     def recover_lost_lock(self, active_ids):
         if not hasattr(self, "lost_counter"):
@@ -119,7 +152,7 @@ class PersonDetection():
                     return
 
             # Unlock if gone too long
-            if self.lost_counter > 90:  # patience (frames)
+            if self.lost_counter > self.patience:  # patience (frames)
                 print(f"Lost lock on {self.locked_id}, resetting...")
                 self.locked_id = None
                 self.lost_counter = 0
@@ -143,26 +176,21 @@ class PersonDetection():
             active_ids.add(track_id)
 
             # Handle lock logic and get state
-            state = self.handle_locking(frame, center_x, center_y, track_id)
+            self.state = self.handle_locking(frame, 
+                                             center_x, 
+                                             center_y, 
+                                             track_id)
 
             # Assign colors by state
-            if state == "locked":
+            if self.state == "locked":
                 color = (0, 255, 0)   # green
-            elif state == "candidate":
+            elif self.state == "candidate":
                 color = (0, 255, 255) # yellow
             else:
                 color = (0, 0, 255)   # red
 
             # Draw box + trajectory
             self.draw_box_and_traj(frame, track_id, box, color)
-
-            if not state == "locked":
-                # Draw lock box
-                cv2.rectangle(frame, 
-                            (self.x_min, self.y_min - 10), 
-                            (self.x_max, self.y_max + 10), 
-                            (125, 125, 125), 
-                            2)
 
         # Handle lost lock recovery
         self.recover_lost_lock(active_ids)
@@ -176,15 +204,18 @@ class PersonDetection():
             self.x_min = int(self.w * (0.5 - margin / 2))
         if not hasattr(self, "x_max"):
             self.x_max = int(self.w * (0.5 + margin / 2))
-        self.y_min = 0
-        self.y_max = self.h
+        if not hasattr(self, "y_min"):
+            self.y_min = int(self.h * (0.5 - margin / 2))
+        if not hasattr(self, "y_max"):
+            self.y_max = int(self.h * (0.5 + margin / 2))
         return self.x_min <= center_x <= self.x_max and \
                self.y_min <= center_y <= self.y_max
 
     def detect_pedestrians(self, frame):
         frame = self.resize_frame(frame)
         if not hasattr(self, 'image_center'):
-            self.image_center = (frame.shape[1] // 2, frame.shape[0] // 2)
+            self.image_center = (frame.shape[1] // 2, 
+                                 frame.shape[0] // 2)
 
         boxes = self.track_pedestrians(frame)
         if boxes is None:
@@ -194,7 +225,6 @@ class PersonDetection():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         return frame
-
 
 if __name__ == '__main__':
     detector = PersonDetection(25, 0.50)
