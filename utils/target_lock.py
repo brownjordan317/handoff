@@ -4,26 +4,57 @@ import numpy as np
 import torch
 from collections import deque
 from tabulate import tabulate
-import os
 
 class PersonDetection():
     def __init__(self, 
                  scale_percent, 
                  conf_level, 
+                 fps,
+                 patience
                  ):
         self.scale_percent = scale_percent
         self.conf_level = conf_level
+        
+        self.turn_direction = None
+        self.mc_number = None
+        self.dist_x = None
 
         self.locked_id = None
         self.center_counts = {}
-        self.fps = 30
-        self.lock_frames = 3 * self.fps  # 2 seconds to lock
+        self.fps = fps
+        self.lock_frames = patience * self.fps  # 2 seconds to lock
         self.trajectories = {}
-        self.patience = 3 * self.fps
+        self.patience = patience * self.fps
 
         self.class_IDS = [0]  # person only
         self.frame_num = 1
         self.model = YOLO('yolov8n.pt')
+
+    # def draw_box_and_traj(self, frame, track_id, box, color):
+    #     x1, y1, x2, y2 = map(int, box.xyxy[0])
+    #     conf = float(box.conf[0])
+
+    #     # Draw bounding box
+    #     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    #     cv2.putText(frame,
+    #                 f"ID {track_id}:{conf:.2f}",
+    #                 (x1, y1 - 5),
+    #                 cv2.FONT_HERSHEY_SIMPLEX,
+    #                 0.6,
+    #                 color,
+    #                 2)
+
+    #     # Draw trajectory points
+    #     for (cx, cy) in self.trajectories[track_id]:
+    #         cv2.circle(frame, (cx, cy), 3, color, -1)
+
+    #     # if not self.state == "locked":
+    #     # Draw lock box
+    #     cv2.rectangle(frame, 
+    #                 (self.x_min, self.y_min - 10), 
+    #                 (self.x_max, self.y_max + 10), 
+    #                 (125, 125, 125), 
+    #                 2)
 
     def resize_frame(self, frame):
         frame = cv2.flip(frame, 1)
@@ -81,8 +112,8 @@ class PersonDetection():
             if dist <= thr:
                 self.mc_number = 0
             else:
-                self.mc_number = 0.3 + 0.7 * ((dist - thr) / (max_val - thr))
-                self.mc_number = min(self.mc_number, 1.0)  # clip at 1
+                self.mc_number = 0.3 + 6 * ((dist - thr) / (max_val - thr))
+                self.mc_number = min(self.mc_number, 6.3)
 
             if self.dist_x < 0:
                 self.turn_direction = "left"
@@ -99,32 +130,6 @@ class PersonDetection():
             
             return "locked"
         return "unlocked"
-
-    def draw_box_and_traj(self, frame, track_id, box, color):
-        x1, y1, x2, y2 = map(int, box.xyxy[0])
-        conf = float(box.conf[0])
-
-        # Draw bounding box
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(frame,
-                    f"ID {track_id}:{conf:.2f}",
-                    (x1, y1 - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    color,
-                    2)
-
-        # Draw trajectory points
-        for (cx, cy) in self.trajectories[track_id]:
-            cv2.circle(frame, (cx, cy), 3, color, -1)
-
-        # if not self.state == "locked":
-        # Draw lock box
-        cv2.rectangle(frame, 
-                    (self.x_min, self.y_min - 10), 
-                    (self.x_max, self.y_max + 10), 
-                    (125, 125, 125), 
-                    2)
 
     def recover_lost_lock(self, active_ids):
         if not hasattr(self, "lost_counter"):
@@ -227,7 +232,7 @@ class PersonDetection():
         return frame
 
 if __name__ == '__main__':
-    detector = PersonDetection(25, 0.50)
+    detector = PersonDetection(25, 0.50, 15, 3)
     cap = cv2.VideoCapture('rtsp://10.226.36.234:8080/h264_opus.sdp')
     frame_counter = 0
     frame_skip = 1
