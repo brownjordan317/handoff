@@ -1,0 +1,52 @@
+{
+  "name": "ROS 2 Workspace jazzy-ros-base",
+  "remoteUser": "root",
+  "build": {
+      "dockerfile": "Dockerfile",
+      "args": {
+          "USERNAME": "root"
+      }
+  },
+  "customizations": {
+      "vscode": {
+          "extensions": [
+              "ms-python.python",
+              "charliermarsh.ruff",
+              "ms-vscode.cpptools-extension-pack",
+              "ms-iot.vscode-ros",
+              "smilerobotics.urdf",
+              "redhat.vscode-xml",
+              "tamasfe.even-better-toml",
+              "timonwong.shellcheck",
+              "yzhang.markdown-all-in-one"
+          ],
+          "settings": {
+              "files.associations": {
+                  "*.rviz": "yaml",
+                  "*.srdf": "xml",
+                  "*.urdf": "xml",
+                  "*.xacro": "xml"
+              }
+          }
+      }
+  },
+  "workspaceFolder": "/home/rosdev/ros2_ws",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/rosdev/ros2_ws/src,type=bind",
+  "mounts": [
+    "source=${localEnv:HOME}/localization_conf,target=/localization_conf,type=bind",
+    // https://stackoverflow.com/questions/60733288/devcontainer-how-to-make-x-display-work-mount-graphics-inside-docker-in-visual
+    // run this command `xhost local:root`
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+  ],
+  "containerEnv": {
+    "DISPLAY": ":1",
+    "XAUTHORITY": "/tmp/.X11-unix"
+  },
+  "runArgs": [
+      "--net=host",
+      "--ipc=host",
+      "--pid=host",
+      "--runtime=nvidia",
+      "--gpus=all"
+  ]
+}

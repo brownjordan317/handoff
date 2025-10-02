@@ -1,4 +1,4 @@
-from utils.target_lock import PersonDetection
+from utils.person_tracking import PersonTracking
 
 import rclpy
 from rclpy.node import Node
@@ -34,7 +34,10 @@ class FollowerNode(Node):
         self.pred_image_pub = self.create_publisher(Image,
                                                    topic = IMAGE_PUB_TOPIC,
                                                    qos_profile = 1)
-        self.spot_turn_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        
+        self.spot_turn_pub = self.create_publisher(Twist, 
+                                                   '/cmd_vel', 
+                                                   10)
 
     def initialize_ros2(self):
         self.create_subs()
@@ -44,7 +47,7 @@ class FollowerNode(Node):
                                                 callback = self.run)
         
     def intitialize_detector(self):
-        self.detector = PersonDetection(scale_percent = 25, 
+        self.detector = PersonTracking(scale_percent = 25, 
                                         conf_level = 0.25,
                                         fps = FPS,
                                         patience = PATIENCE)
@@ -60,6 +63,15 @@ class FollowerNode(Node):
         self.pred_image_pub.publish(msg)
 
     def run(self):
+        """
+        Publish the detected image and control command based on the detected 
+        pedestrian if the image is not None.
+
+        If the detected pedestrian is in the center of the frame, calculate 
+        the turn speed based on the distance from the center of the frame to 
+        the center of the bounding box. Then, publish a Twist message with the
+        calculated turn speed to the spot turn topic.
+        """
         if self.image is not None:
             self.publish_pred_image(
                 self.detector.detect_pedestrians(self.image)

@@ -1,0 +1,7 @@
+folium
+ollama
+geopy
+pyproj
+rasterio
+segmentation_models_pytorch
+transformers
