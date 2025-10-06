@@ -98,12 +98,9 @@ class GestureRecognitionTraining:
         self.export_model()
         logger.info("Pipeline complete.")
 
-# -------------------------------
-# MAIN
-# -------------------------------
 def main():
     pipeline = GestureRecognitionTraining(
-        dataset_path="/home/megrad/Downloads/asl_letters_only",
+        dataset_path="/home/megrad/Documents/asl_alphabet_LO",
         export_dir="exported_model",
         task_filename="asl_letters_only.task",
         epochs=100,

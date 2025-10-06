@@ -1,4 +1,4 @@
-from project_node.person_tracking import PersonTracking
+from project_node.utils.person_tracking import PersonTracking
 
 import rclpy
 from rclpy.node import Node
