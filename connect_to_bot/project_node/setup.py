@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'recog = project_node.user_tracking_node:main'
+            'recog = project_node.user_tracking_node:main',
+            'webcam_pub = project_node.webcam:main',
         ],
     },
 )

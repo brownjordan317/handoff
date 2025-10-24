@@ -18,9 +18,22 @@ base_transform = transforms.Compose([
     transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
 ])
 
-# Helper: Apply random homography warp using OpenCV
 def random_homography(image, max_warp=0.1):
-    """Apply random homography warp to a PIL image."""
+    """
+    Apply a random homography warp to an image.
+
+    Parameters
+    ----------
+    image : PIL.Image
+        Input image
+    max_warp : float, optional
+        Maximum perturbation of corners in pixels (default=0.1)
+
+    Returns
+    -------
+    PIL.Image
+        Warped image
+    """
     img = np.array(image)
     h, w = img.shape[:2]
 
@@ -29,17 +42,37 @@ def random_homography(image, max_warp=0.1):
 
     # Perturb corners slightly
     shift = max_warp * min(h, w)
-    pts2 = pts1 + np.random.uniform(-shift, shift, pts1.shape).astype(np.float32)
+    pts2 = pts1 + np.random.uniform(
+        -shift, 
+        shift, 
+        pts1.shape
+    ).astype(np.float32)
 
     # Compute homography and warp
     M = cv2.getPerspectiveTransform(pts1, pts2)
-    warped = cv2.warpPerspective(img, M, (w,h), borderMode=cv2.BORDER_REFLECT101)
+    warped = cv2.warpPerspective(
+        img, 
+        M, 
+        (w,h), 
+        borderMode=cv2.BORDER_REFLECT101
+    )
 
     return Image.fromarray(warped)
 
-# Augmentation pipeline
 def augment_image(img):
-    # Apply torchvision transforms
+    """
+    Apply torchvision transforms and homography to an image.
+
+    Parameters
+    ----------
+    img : PIL.Image
+        Input image
+
+    Returns
+    -------
+    PIL.Image
+        Augmented image
+    """
     img = base_transform(img)
 
     # Apply homography with 50% chance
@@ -50,6 +83,19 @@ def augment_image(img):
 
 # Function to process a single image (parallelized)
 def process_image(img_path):
+    """
+    Process a single image by applying torchvision transforms and homography.
+
+    Parameters
+    ----------
+    img_path : str
+        Path to the input image
+
+    Returns
+    -------
+    list
+        List of paths to the augmented images
+    """
     try:
         img = Image.open(img_path).convert("RGB")
         base_name, ext = os.path.splitext(os.path.basename(img_path))
@@ -67,7 +113,6 @@ def process_image(img_path):
         return f"Error processing {img_path}: {e}"
 
 if __name__ == "__main__":
-    # Collect all image paths
     all_images = []
     for root, dirs, files in os.walk(DATASET_DIR):
         for file in files:
@@ -78,4 +123,12 @@ if __name__ == "__main__":
 
     # Use multiprocessing pool
     with Pool(processes=cpu_count()) as pool:
-        list(tqdm(pool.imap_unordered(process_image, all_images), total=len(all_images)))
+        list(
+            tqdm(
+                pool.imap_unordered(
+                    process_image, 
+                    all_images
+                ), 
+                total=len(all_images)
+            )
+        )

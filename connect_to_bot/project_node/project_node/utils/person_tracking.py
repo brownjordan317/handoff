@@ -3,7 +3,8 @@ from ultralytics import YOLO
 import numpy as np
 from tabulate import tabulate
 
-from pose_tracking import PoseTracking
+from project_node.utils.pose_tracking import PoseTracking
+from project_node.utils.hand_controls import HandControls
 
 class PersonTracking():
     def __init__(self, 
@@ -32,6 +33,8 @@ class PersonTracking():
         self.model = YOLO('yolov8n-seg.pt')
 
         self.pose_tracker = PoseTracking()
+        self.hand_controls = HandControls()
+        self.drive_command = None
 
     def draw_boxj(self, frame, track_id, box, color):
         x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -102,18 +105,18 @@ class PersonTracking():
             if dist <= thr:
                 self.mc_number = 0
             else:
-                self.mc_number = 0.3 + 6 * ((dist - thr) / (max_val - thr))
-                self.mc_number = min(self.mc_number, 6.3)
+                self.mc_number = 0.3 + 5 * ((dist - thr) / (max_val - thr))
+                self.mc_number = min(self.mc_number, 5.3)
 
             if self.dist_x < 0:
                 self.turn_direction = "left"
             else:
                 self.turn_direction = "right"
 
-            data = [[track_id, self.dist_x, 
-                     self.mc_number, self.turn_direction]]
-            headers = ["Locked ID", "X Distance", 
-                       "Motor Speed", "Turn Direction"]
+            # data = [[track_id, self.dist_x, 
+            #          self.mc_number, self.turn_direction]]
+            # headers = ["Locked ID", "X Distance", 
+            #            "Motor Speed", "Turn Direction"]
 
             # print("\033[H\033[J", end="")  # ANSI clear
             # print(tabulate(data, headers=headers, tablefmt="fancy_grid"))
@@ -167,7 +170,7 @@ class PersonTracking():
     def draw_detections(self, frame, boxes_obj):
         seen_ids = set()
 
-        # Case 1: Not locked yet → draw all boxes, update lock state
+        # Case 1: Not locked yet draw all boxes, update lock state
         if self.locked_id is None:
             for box in boxes_obj:
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
@@ -175,17 +178,22 @@ class PersonTracking():
                 seen_ids.add(track_id)
 
                 center_x, center_y = (x1 + x2) // 2, (y1 + y2) // 2
-                self.state = self.handle_locking(frame, center_x, center_y, track_id)
+                self.state = self.handle_locking(
+                    frame, 
+                    center_x, 
+                    center_y, 
+                    track_id
+                )
 
                 # Draw candidate/unlocked boxes
                 color = {
-                    "candidate": (0, 255, 255),  # yellow when inside lock region
+                    "candidate": (0, 255, 255),  # yellow when in lock region
                     "locked": (0, 255, 0),       # (rare, just transitioned)
                 }.get(self.state, (0, 0, 255))   # red otherwise
 
                 self.draw_boxj(frame, track_id, box, color)
 
-        # Case 2: Locked → process ONLY the locked ID
+        # Case 2: Locked process ONLY the locked ID
         else:
             for box in boxes_obj:
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
@@ -196,6 +204,14 @@ class PersonTracking():
                 if track_id != self.locked_id:
                     continue  
 
+                center_x, center_y = (x1 + x2) // 2, (y1 + y2) // 2
+                self.state = self.handle_locking(
+                    frame, 
+                    center_x, 
+                    center_y, 
+                    track_id
+                )
+
                 # Process pose tracking for locked target only
                 frame = self.process_locked_target(frame, (x1, y1, x2, y2))
 
@@ -203,7 +219,7 @@ class PersonTracking():
                 self.draw_boxj(frame, track_id, box, (0, 255, 0))
                 break  # stop after processing the locked target
 
-        # If locked target disappears → reset after patience
+        # If locked target disappears reset after patience
         self.update_lock_state(seen_ids)
         return frame
 
@@ -233,6 +249,16 @@ class PersonTracking():
             return frame
 
         frame = self.draw_detections(frame, boxes)
+
+        self.hand_controls.call_controls(
+            self.pose_tracker.left_gesture, 
+            self.pose_tracker.right_gesture
+        )
+
+        self.drive_command = self.hand_controls.drive_command
+
+        cv2.imshow('frame', frame)
+        cv2.waitKey(1)
         return frame
 
 if __name__ == '__main__':

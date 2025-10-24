@@ -1,6 +1,7 @@
 import mediapipe as mp
 import cv2
 import numpy as np
+import json
 
 class PoseTracking():
     def __init__(self, fps=30):
@@ -19,11 +20,13 @@ class PoseTracking():
         VisionRunningMode = mp.tasks.vision.RunningMode
 
         self.gesture_options = GestureRecognizerOptions(
-            base_options=BaseOptions(model_asset_path="asl_letters_only.task"),
+            base_options=BaseOptions(model_asset_path="/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task"),
             running_mode=VisionRunningMode.VIDEO,
             num_hands=2,
         )
-        self.gesture_recognizer = GestureRecognizer.create_from_options(self.gesture_options)
+        self.gesture_recognizer = GestureRecognizer.create_from_options(
+            self.gesture_options
+        )
 
         # State
         self.frame = None
@@ -71,7 +74,10 @@ class PoseTracking():
         if result.pose_landmarks:
             smoothed = self.smooth_landmarks(result.pose_landmarks.landmark,
                                              self.prev_pose_landmarks)
-            result.pose_landmarks = self.apply_smoothed_to_proto(result.pose_landmarks, smoothed)
+            result.pose_landmarks = self.apply_smoothed_to_proto(
+                result.pose_landmarks, 
+                smoothed
+            )
             self.prev_pose_landmarks = smoothed
             self.last_pose = result.pose_landmarks
             self.pose_miss_counter = 0
@@ -79,21 +85,36 @@ class PoseTracking():
             self.mp_drawing.draw_landmarks(
                 self.frame, result.pose_landmarks,
                 mp.solutions.holistic.POSE_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-                self.mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2, circle_radius=2),
+                self.mp_drawing.DrawingSpec(
+                    color=(0, 255, 0), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
+                self.mp_drawing.DrawingSpec(
+                    color=(255, 0, 0), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
             )
         else:
             if self.last_pose:
                 self.pose_miss_counter += 1
                 if self.pose_miss_counter < 5:
                     self.mp_drawing.draw_landmarks(
-                        self.frame, self.last_pose, mp.solutions.holistic.POSE_CONNECTIONS
+                        self.frame, 
+                        self.last_pose, 
+                        mp.solutions.holistic.POSE_CONNECTIONS
                     )
 
         if result.left_hand_landmarks:
-            smoothed = self.smooth_landmarks(result.left_hand_landmarks.landmark,
-                                             self.prev_left_hand_landmarks)
-            result.left_hand_landmarks = self.apply_smoothed_to_proto(result.left_hand_landmarks, smoothed)
+            smoothed = self.smooth_landmarks(
+                result.left_hand_landmarks.landmark,
+                self.prev_left_hand_landmarks
+            )
+            result.left_hand_landmarks = self.apply_smoothed_to_proto(
+                result.left_hand_landmarks, 
+                smoothed
+            )
             self.prev_left_hand_landmarks = smoothed
             self.last_left_hand = result.left_hand_landmarks
             self.left_hand_miss_counter = 0
@@ -101,21 +122,36 @@ class PoseTracking():
             self.mp_drawing.draw_landmarks(
                 self.frame, result.left_hand_landmarks,
                 mp.solutions.holistic.HAND_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2),
-                self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
+                self.mp_drawing.DrawingSpec(
+                    color=(0, 255, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
+                self.mp_drawing.DrawingSpec(
+                    color=(0, 0, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
             )
         else:
             if self.last_left_hand:
                 self.left_hand_miss_counter += 1
                 # if self.left_hand_miss_counter < 5:
                 #     self.mp_drawing.draw_landmarks(
-                #         self.frame, self.last_left_hand, mp.solutions.holistic.HAND_CONNECTIONS
+                #         self.frame, 
+                #         self.last_left_hand, 
+                #         mp.solutions.holistic.HAND_CONNECTIONS
                 #     )
 
         if result.right_hand_landmarks:
-            smoothed = self.smooth_landmarks(result.right_hand_landmarks.landmark,
-                                             self.prev_right_hand_landmarks)
-            result.right_hand_landmarks = self.apply_smoothed_to_proto(result.right_hand_landmarks, smoothed)
+            smoothed = self.smooth_landmarks(
+                result.right_hand_landmarks.landmark,
+                self.prev_right_hand_landmarks
+            )
+            result.right_hand_landmarks = self.apply_smoothed_to_proto(
+                result.right_hand_landmarks, 
+                smoothed
+            )
             self.prev_right_hand_landmarks = smoothed
             self.last_right_hand = result.right_hand_landmarks
             self.right_hand_miss_counter = 0
@@ -123,30 +159,54 @@ class PoseTracking():
             self.mp_drawing.draw_landmarks(
                 self.frame, result.right_hand_landmarks,
                 mp.solutions.holistic.HAND_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2),
-                self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
+                self.mp_drawing.DrawingSpec(
+                    color=(0, 255, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
+                self.mp_drawing.DrawingSpec(
+                    color=(0, 0, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
             )
         else:
             if self.last_right_hand:
                 self.right_hand_miss_counter += 1
                 # if self.right_hand_miss_counter < 5:
                 #     self.mp_drawing.draw_landmarks(
-                #         self.frame, self.last_right_hand, mp.solutions.holistic.HAND_CONNECTIONS
+                #         self.frame, 
+                #         self.last_right_hand, 
+                #         mp.solutions.holistic.HAND_CONNECTIONS
                 #     )
 
-    def gesture_tracking(self):
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=self.frame_rgb)
+    def gesture_tracking(self, flip_hands=True):
+        mp_image = mp.Image(
+            image_format=mp.ImageFormat.SRGB, 
+            data=self.frame_rgb
+        )
         timestamp_ms = int(self.frame_counter * 1000 / self.fps)
-        result = self.gesture_recognizer.recognize_for_video(mp_image, timestamp_ms)
+        result = self.gesture_recognizer.recognize_for_video(
+            mp_image, 
+            timestamp_ms
+        )
 
         if result.gestures and result.handedness:
-            for gesture_list, handedness_list in zip(result.gestures, result.handedness):
+            for gesture_list, handedness_list in zip(result.gestures, 
+                                                     result.handedness
+                                                     ):
                 gesture = gesture_list[0]
                 handedness = handedness_list[0]
 
                 gesture_name = gesture.category_name
                 score = gesture.score
                 hand_label = handedness.category_name
+
+                if flip_hands:
+                    if hand_label == "Left":
+                        hand_label = "Right"
+                    elif hand_label == "Right":
+                        hand_label = "Left"
 
                 if score < 0.7:
                     continue
@@ -168,7 +228,9 @@ class PoseTracking():
                             self.right_gesture = gesture_name
                     self.last_right = gesture_name
 
-                print(f"{hand_label} hand: {gesture_name} ({score:.2f})")
+                # print(f"{hand_label} hand: {gesture_name} ({score:.2f})")
+
+
 
     def run_tracking(self, frame):
         self.frame = frame

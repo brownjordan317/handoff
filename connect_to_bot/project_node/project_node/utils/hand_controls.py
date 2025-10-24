@@ -1,0 +1,66 @@
+
+
+commands = ["VV"]
+
+
+class HandControls():
+    def __init__(self):
+        self.patience = 3
+        self.current_call = None
+        self.prev_call = None
+        self.call_counter = 0
+        self.drive_command = None
+
+        pass
+
+    def call_controls(self, left_hand, right_hand):
+
+        print(f"Left hand: {left_hand}, Right hand: {right_hand}")
+
+        if left_hand == "V" and \
+            right_hand == "V":
+            
+            if self.prev_call != "VV":
+                self.call_counter = 1
+                self.prev_call = "VV"
+            else:
+                self.call_counter += 1
+
+            if self.call_counter >= self.patience:
+                print("Drive command: FORWARD")
+                self.drive_command = "FORWARD"
+            
+        elif left_hand == "V" and \
+            right_hand != "V":
+            
+            if self.prev_call != "VNone":
+                self.call_counter = 1
+                self.prev_call = "VNone"
+            else:
+                self.call_counter += 1
+
+            if self.call_counter >= self.patience:
+                print("Drive command: LEFT")
+                self.drive_command = "LEFT"
+            
+        elif left_hand != "V" and \
+            right_hand == "V":
+            
+            if self.prev_call != "NoneV":
+                self.call_counter = 1
+                self.prev_call = "NoneV"
+            else:
+                self.call_counter += 1
+
+            if self.call_counter >= self.patience:
+                print("Drive command: RIGHT")
+                self.drive_command = "RIGHT"
+
+        else:
+            if self.prev_call != "NoneNone":
+                self.call_counter = 1
+                self.prev_call = "NoneNone"
+            else:
+                self.call_counter += 1
+            print("Drive command: STOP")
+            self.drive_command = "STOP"

@@ -6,9 +6,9 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
-IMAGE_RECV_TOPIC = "shiv_1/camera/image"
+IMAGE_RECV_TOPIC = "/camera/image_raw"
 IMAGE_PUB_TOPIC = "jordansProject/detections/image"
-FPS = 15
+FPS = 30
 PATIENCE = 3
 
 class FollowerNode(Node):
@@ -54,7 +54,7 @@ class FollowerNode(Node):
 
     def set_image(self, msg: Image):
         cv_image = self.bridge.imgmsg_to_cv2(msg, 
-                                             desired_encoding = "rgb8")
+                                             desired_encoding = "bgr8")
         self.image = cv_image
 
     def publish_pred_image(self, image):
@@ -73,19 +73,42 @@ class FollowerNode(Node):
         calculated turn speed to the spot turn topic.
         """
         if self.image is not None:
-            self.publish_pred_image(
-                self.detector.detect_pedestrians(self.image)
-                )
+            image = self.detector.detect_pedestrians(self.image)
+            # self.publish_pred_image(
+            #     image
+            #     )
+            
+            twist_msg = Twist()
+            # if self.detector.turn_direction is not None \
+            #     and self.detector.mc_number is not None \
+            #         and self.detector.dist_x is not None\
+            #             and self.detector.state == "locked":
+                
+            #     turn_speed = -self.detector.mc_number if \
+            #         self.detector.turn_direction == "right" else \
+            #             self.detector.mc_number
+            #     # clip turn speed between -1 and 1
+            #     # turn_speed = max(min(turn_speed, 1.0), -1.0)
+            #     twist_msg.angular.z = float(turn_speed)
+            #     self.spot_turn_pub.publish(twist_msg)
+            # else:
+            #     twist_msg.angular.z = 0.0
+            # self.spot_turn_pub.publish(twist_msg)
 
-            if self.detector.turn_direction is not None \
-                and self.detector.mc_number is not None \
-                    and self.detector.dist_x is not None:
-                twist_msg = Twist()
-                turn_speed = self.detector.mc_number if \
-                    self.detector.turn_direction == "right" else \
-                        -self.detector.mc_number
-                twist_msg.angular.z = turn_speed
+            if self.detector.hand_controls.drive_command is not None:
+                drive_cmd = self.detector.hand_controls.drive_command
+                if drive_cmd == "FORWARD":
+                    twist_msg.linear.x = 0.5
+                elif drive_cmd == "LEFT":
+                    twist_msg.angular.z = 1.0
+                elif drive_cmd == "RIGHT":
+                    twist_msg.angular.z = -1.0
+                else:  # STOP or unrecognized command
+                    twist_msg.linear.x = 0.0
+                    twist_msg.angular.z = 0.0
+                
                 self.spot_turn_pub.publish(twist_msg)
+                
 
 def main(args=None):
     rclpy.init(args=args)
