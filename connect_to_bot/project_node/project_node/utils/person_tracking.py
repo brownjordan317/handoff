@@ -256,9 +256,6 @@ class PersonTracking():
         )
 
         self.drive_command = self.hand_controls.drive_command
-
-        cv2.imshow('frame', frame)
-        cv2.waitKey(1)
         return frame
 
 if __name__ == '__main__':
