@@ -20,7 +20,10 @@ class PoseTracking():
         VisionRunningMode = mp.tasks.vision.RunningMode
 
         self.gesture_options = GestureRecognizerOptions(
-            base_options=BaseOptions(model_asset_path="/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task"),
+            base_options=BaseOptions(
+                model_asset_path="/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task",
+                delegate=BaseOptions.Delegate.GPU,
+                ),
             running_mode=VisionRunningMode.VIDEO,
             num_hands=2,
         )

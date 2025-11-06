@@ -2,6 +2,7 @@ import cv2
 from ultralytics import YOLO
 import numpy as np
 from tabulate import tabulate
+import torch
 
 from project_node.utils.pose_tracking import PoseTracking
 from project_node.utils.hand_controls import HandControls
@@ -13,6 +14,8 @@ class PersonTracking():
                  fps,
                  patience
                  ):
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
         self.scale_percent = scale_percent
         self.conf_level = conf_level
         
@@ -30,7 +33,7 @@ class PersonTracking():
 
         self.class_IDS = [0]  # person only
         self.frame_num = 1
-        self.model = YOLO('yolov8n-seg.pt')
+        self.model = YOLO('yolo11m')
 
         self.pose_tracker = PoseTracking()
         self.hand_controls = HandControls()
@@ -73,7 +76,7 @@ class PersonTracking():
             classes=self.class_IDS,
             persist=True,
             verbose=False,
-            device="cpu"
+            device=self.device,
         )
         if len(results) == 0 or len(results[0].boxes) == 0:
             return None
@@ -95,6 +98,7 @@ class PersonTracking():
                 self.check_lock(frame, center_x, center_y, track_id)
                 return "candidate"
             else:
+                self.mc_number = 0.0
                 return "unlocked"
         elif self.locked_id == track_id:
             self.dist_x = center_x - self.image_center[0]
@@ -105,8 +109,8 @@ class PersonTracking():
             if dist <= thr:
                 self.mc_number = 0
             else:
-                self.mc_number = 0.3 + 5 * ((dist - thr) / (max_val - thr))
-                self.mc_number = min(self.mc_number, 5.3)
+                self.mc_number = 0.3 + 1 * ((dist - thr) / (max_val - thr))
+                self.mc_number = min(self.mc_number, 1.3)
 
             if self.dist_x < 0:
                 self.turn_direction = "left"
@@ -122,6 +126,7 @@ class PersonTracking():
             # print(tabulate(data, headers=headers, tablefmt="fancy_grid"))
             
             return "locked"
+        self.mc_number = 0.0
         return "unlocked"
     
     def expand_box(self, box, frame_shape, 
@@ -145,7 +150,6 @@ class PersonTracking():
         frame[y1:y2, x1:x2] = crop
         return frame
 
-
     def process_locked_target(self, frame, box):
         expanded_box = self.expand_box(box, frame.shape)
         x1, y1, x2, y2 = expanded_box
@@ -157,15 +161,17 @@ class PersonTracking():
 
 
     def update_lock_state(self, seen_ids):
-        if self.locked_id is not None and self.locked_id not in seen_ids:
-            self.missing_frames += 1
-            if self.missing_frames > self.patience:
-                self.locked_id, self.state, self.missing_frames = None, \
-                                                                 "unlocked", \
-                                                                  0
-        else:
-            self.missing_frames = 0
-
+        if self.locked_id is not None:
+            if self.locked_id not in seen_ids:
+                self.missing_frames += 1
+                # wait up to self.patience frames before unlocking
+                if self.missing_frames >= self.patience:
+                    self.locked_id = None
+                    self.state = "unlocked"
+                    self.missing_frames = 0
+            else:
+                # reset counter if seen again
+                self.missing_frames = 0
 
     def draw_detections(self, frame, boxes_obj):
         seen_ids = set()
@@ -246,6 +252,7 @@ class PersonTracking():
 
         boxes = self.find_people(frame)
         if boxes is None:
+            self.update_lock_state(set())
             return frame
 
         frame = self.draw_detections(frame, boxes)

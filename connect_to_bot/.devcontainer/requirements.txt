@@ -5,3 +5,6 @@ pyproj
 rasterio
 segmentation_models_pytorch
 transformers
+mediapipe
+ultralytics==8.3.225
+tabulate

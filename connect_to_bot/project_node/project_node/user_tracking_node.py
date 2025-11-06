@@ -8,8 +8,10 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
 IMAGE_RECV_TOPIC = "/camera/image_raw"
+# IMAGE_RECV_TOPIC = "/shiv_1/camera/image"
 IMAGE_PUB_TOPIC = "jordansProject/detections/image"
-FPS = 30
+IMAGE_SCALE_PERCENT = 25
+FPS = 30.0
 PATIENCE = 3
 
 class FollowerNode(Node):
@@ -44,11 +46,11 @@ class FollowerNode(Node):
         self.create_subs()
         self.create_pubs()
         
-        self.matching_timer = self.create_timer(timer_period_sec = 1 / FPS, 
+        self.matching_timer = self.create_timer(timer_period_sec = 1.0 / FPS, 
                                                 callback = self.run)
         
     def intitialize_detector(self):
-        self.detector = PersonTracking(scale_percent = 25, 
+        self.detector = PersonTracking(scale_percent = IMAGE_SCALE_PERCENT, 
                                         conf_level = 0.25,
                                         fps = FPS,
                                         patience = PATIENCE)
@@ -87,9 +89,9 @@ class FollowerNode(Node):
                     and self.detector.dist_x is not None\
                         and self.detector.state == "locked":
                 
-                turn_speed = -self.detector.mc_number if \
+                turn_speed = self.detector.mc_number if \
                     self.detector.turn_direction == "right" else \
-                        self.detector.mc_number
+                        -self.detector.mc_number
                 # clip turn speed between -1 and 1
                 # turn_speed = max(min(turn_speed, 1.0), -1.0)
                 twist_msg.angular.z = float(turn_speed)
@@ -100,12 +102,14 @@ class FollowerNode(Node):
 
             # if self.detector.hand_controls.drive_command is not None:
             #     drive_cmd = self.detector.hand_controls.drive_command
-            #     if drive_cmd == "FORWARD":
+            #     print(self.detector.state)
+            #     if drive_cmd == "FORWARD" and \
+            #         self.detector.state == "locked":
             #         twist_msg.linear.x = 0.5
-            #     elif drive_cmd == "LEFT":
-            #         twist_msg.angular.z = 1.0
-            #     elif drive_cmd == "RIGHT":
-            #         twist_msg.angular.z = -1.0
+            #     # elif drive_cmd == "LEFT":
+            #     #     twist_msg.angular.z = 1.0
+            #     # elif drive_cmd == "RIGHT":
+            #     #     twist_msg.angular.z = -1.0
             #     else:  # STOP or unrecognized command
             #         twist_msg.linear.x = 0.0
             #         twist_msg.angular.z = 0.0
