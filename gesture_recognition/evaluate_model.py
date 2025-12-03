@@ -78,14 +78,14 @@ with tqdm(total=total_images, desc="Processing images") as pbar:
 
             # Fallback if no gesture passed threshold
             if predicted_label is None:
-                predicted_label = "None"
+                predicted_label = "none"
 
             y_true.append(label_idx)
             y_pred.append(labels.index(predicted_label) if predicted_label in labels else -1)
             pbar.update(1)
 
 # === CONFUSION MATRIX ===
-cm_labels = labels + ["None"] if -1 in y_pred else labels
+cm_labels = labels + ["none"] if -1 in y_pred else labels
 cm = confusion_matrix(y_true, y_pred, labels=list(range(len(labels))) + ([-1] if -1 in y_pred else []))
 
 plt.figure(figsize=(12, 10))
@@ -100,7 +100,7 @@ print(f"[INFO] Confusion matrix saved to {OUTPUT_CM_PNG}")
 plt.close()
 
 # === CLASSIFICATION REPORT ===
-y_pred_str = [labels[i] if i >= 0 else "None" for i in y_pred]
+y_pred_str = [labels[i] if i >= 0 else "none" for i in y_pred]
 report_dict = classification_report([labels[i] for i in y_true], y_pred_str, target_names=cm_labels, output_dict=True)
 
 # Save to JSON

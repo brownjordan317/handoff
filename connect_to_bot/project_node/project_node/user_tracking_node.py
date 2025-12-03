@@ -7,10 +7,10 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
-IMAGE_RECV_TOPIC = "/camera/image_raw"
-# IMAGE_RECV_TOPIC = "/shiv_1/camera/image"
+# IMAGE_RECV_TOPIC = "/camera/image_raw"
+IMAGE_RECV_TOPIC = "/shiv_1/camera/image"
 IMAGE_PUB_TOPIC = "jordansProject/detections/image"
-IMAGE_SCALE_PERCENT = 25
+IMAGE_SCALE_PERCENT = 100
 FPS = 30.0
 PATIENCE = 3
 
@@ -102,7 +102,6 @@ class FollowerNode(Node):
 
             # if self.detector.hand_controls.drive_command is not None:
             #     drive_cmd = self.detector.hand_controls.drive_command
-            #     print(self.detector.state)
             #     if drive_cmd == "FORWARD" and \
             #         self.detector.state == "locked":
             #         twist_msg.linear.x = 0.5

@@ -1,2 +1,5 @@
 *.pt
 *.pyc
+connect_to_bot/install
+connect_to_bot/build
+connect_to_bot/log

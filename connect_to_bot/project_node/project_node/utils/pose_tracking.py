@@ -7,8 +7,8 @@ class PoseTracking():
     def __init__(self, fps=30):
         # Holistic
         self.mp_holistic = mp.solutions.holistic.Holistic(
-            min_detection_confidence=0.7,
-            min_tracking_confidence=0.7,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
             refine_face_landmarks=False
         )
         self.mp_drawing = mp.solutions.drawing_utils

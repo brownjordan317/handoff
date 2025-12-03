@@ -1,0 +1,37 @@
+import json
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# --- Load JSON file ---
+with open("/home/megrad/Documents/GitHub/ME580_Project/gesture_recognition/gesture_results.json", "r") as f:
+    report = json.load(f)
+
+# --- Extract class metrics (exclude 'accuracy', 'macro avg', 'weighted avg') ---
+classes = []
+precisions, recalls, f1s = [], [], []
+
+for cls, metrics in report.items():
+    if cls in ["accuracy", "macro avg", "weighted avg"]:
+        continue
+    if isinstance(metrics, dict):
+        classes.append(cls)
+        precisions.append(metrics.get("precision", 0))
+        recalls.append(metrics.get("recall", 0))
+        f1s.append(metrics.get("f1-score", 0))
+
+# --- Create a DataFrame for heatmap ---
+df = pd.DataFrame({
+    "precision": precisions,
+    "recall": recalls,
+    "f1-score": f1s
+}, index=classes)
+
+# --- Plot heatmap ---
+plt.figure(figsize=(10, 8))
+sns.heatmap(df, annot=True, cmap="Blues", fmt=".2f", linewidths=.5)
+plt.title("Per-Class Metrics Heatmap (Precision / Recall / F1-score)")
+plt.ylabel("Class")
+plt.xlabel("Metric")
+plt.tight_layout()
+plt.show()
