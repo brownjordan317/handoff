@@ -1,5 +1,5 @@
 {
-  "name": "ROS 2 Workspace jazzy-ros-base",
+  "name": "ROS 2 Workspace humble-ros-base",
   "remoteUser": "root",
 
   "build": {
@@ -54,7 +54,7 @@
     "--ipc=host",
     "--pid=host",
     "--runtime=nvidia",
-    "--gpus=all"
-    // "--device=/dev/video0:/dev/video0"
+    "--gpus=all",
+    "--device=/dev/video0:/dev/video0"
   ]
 }

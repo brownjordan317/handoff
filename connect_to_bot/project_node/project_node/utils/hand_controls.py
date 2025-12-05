@@ -15,7 +15,7 @@ class HandControls():
 
     def call_controls(self, left_hand, right_hand):
 
-        print(f"Left hand: {left_hand}, Right hand: {right_hand}")
+        # print(f"Left hand: {left_hand}, Right hand: {right_hand}")
 
         if left_hand == "V" and \
             right_hand == "V":
@@ -27,7 +27,7 @@ class HandControls():
                 self.call_counter += 1
 
             if self.call_counter >= self.patience:
-                print("Drive command: FORWARD")
+                # print("Drive command: FORWARD")
                 self.drive_command = "FORWARD"
             
         elif left_hand == "V" and \
@@ -40,7 +40,7 @@ class HandControls():
                 self.call_counter += 1
 
             if self.call_counter >= self.patience:
-                print("Drive command: LEFT")
+                # print("Drive command: LEFT")
                 self.drive_command = "LEFT"
             
         elif left_hand != "V" and \
@@ -53,7 +53,7 @@ class HandControls():
                 self.call_counter += 1
 
             if self.call_counter >= self.patience:
-                print("Drive command: RIGHT")
+                # print("Drive command: RIGHT")
                 self.drive_command = "RIGHT"
 
         else:
@@ -62,5 +62,5 @@ class HandControls():
                 self.prev_call = "NoneNone"
             else:
                 self.call_counter += 1
-            print("Drive command: STOP")
+            # print("Drive command: STOP")
             self.drive_command = "STOP"

@@ -85,7 +85,7 @@ with tqdm(total=total_images, desc="Processing images") as pbar:
             pbar.update(1)
 
 # === CONFUSION MATRIX ===
-cm_labels = labels + ["none"] if -1 in y_pred else labels
+cm_labels = labels if -1 in y_pred else labels
 cm = confusion_matrix(y_true, y_pred, labels=list(range(len(labels))) + ([-1] if -1 in y_pred else []))
 
 plt.figure(figsize=(12, 10))

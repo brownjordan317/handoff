@@ -230,7 +230,7 @@ class PersonTracking():
         return frame
 
 
-    def is_in_center(self, frame, center_x, center_y, margin=0.25):
+    def is_in_center(self, frame, center_x, center_y, margin=0.1):
         if not hasattr(self, "h") or not hasattr(self, "w"):
             self.h, self.w = frame.shape[:2]
         if not hasattr(self, "x_min"):

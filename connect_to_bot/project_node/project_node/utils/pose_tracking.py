@@ -3,17 +3,19 @@ import cv2
 import numpy as np
 import json
 
-class PoseTracking():
+class PoseTracking:
     def __init__(self, fps=30):
-        # Holistic
-        self.mp_holistic = mp.solutions.holistic.Holistic(
+        # --- MediaPipe Hands Only ---
+        self.hands = mp.solutions.hands.Hands(
+            static_image_mode=False,
+            max_num_hands=2,
+            model_complexity=1,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-            refine_face_landmarks=False
+            min_tracking_confidence=0.5
         )
-        self.mp_drawing = mp.solutions.drawing_utils
+        self.drawer = mp.solutions.drawing_utils
 
-        # Gesture recognizer
+        # --- Gesture recognizer ---
         BaseOptions = mp.tasks.BaseOptions
         GestureRecognizer = mp.tasks.vision.GestureRecognizer
         GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
@@ -23,7 +25,7 @@ class PoseTracking():
             base_options=BaseOptions(
                 model_asset_path="/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task",
                 delegate=BaseOptions.Delegate.GPU,
-                ),
+            ),
             running_mode=VisionRunningMode.VIDEO,
             num_hands=2,
         )
@@ -31,215 +33,130 @@ class PoseTracking():
             self.gesture_options
         )
 
-        # State
+        # Frame state
         self.frame = None
         self.frame_rgb = None
         self.frame_counter = 0
         self.fps = fps
 
-        # Gesture state
+        # Hand smoothing state
+        self.smoothing_factor = 0.1
+        self.prev_left_hand = None
+        self.prev_right_hand = None
+
+        # Gesture states
         self.left_gesture = None
         self.right_gesture = None
         self.last_left = None
+        self.last_right = None
         self.left_stable_counter = 0
-        self.last_right = None 
         self.right_stable_counter = 0
 
-        # Smoothing + persistence
-        self.smoothing_factor = 0.1
 
-        self.prev_pose_landmarks = None
-        self.prev_left_hand_landmarks = None
-        self.prev_right_hand_landmarks = None
-
-        self.last_pose = None
-        self.pose_miss_counter = 0
-        self.last_left_hand = None
-        self.left_hand_miss_counter = 0
-        self.last_right_hand = None
-        self.right_hand_miss_counter = 0
-
-    def smooth_landmarks(self, landmarks, prev_landmarks):
+    # -------------------------------
+    # Landmark smoothing
+    # -------------------------------
+    def smooth_landmarks(self, landmarks, prev):
         coords = np.array([(lm.x, lm.y, lm.z) for lm in landmarks])
-        if prev_landmarks is not None:
-            coords = (self.smoothing_factor * np.array(prev_landmarks) +
+        if prev is not None:
+            coords = (self.smoothing_factor * np.array(prev) +
                       (1 - self.smoothing_factor) * coords)
         return coords.tolist()
 
-    def apply_smoothed_to_proto(self, landmarks_proto, smoothed_coords):
-        for i, lm in enumerate(landmarks_proto.landmark):
-            lm.x, lm.y, lm.z = smoothed_coords[i]
-        return landmarks_proto
+    def apply_smoothed(self, proto, coords):
+        for i, lm in enumerate(proto.landmark):
+            lm.x, lm.y, lm.z = coords[i]
+        return proto
 
-    def holistic_tracking(self):
-        result = self.mp_holistic.process(self.frame_rgb)
 
-        if result.pose_landmarks:
-            smoothed = self.smooth_landmarks(result.pose_landmarks.landmark,
-                                             self.prev_pose_landmarks)
-            result.pose_landmarks = self.apply_smoothed_to_proto(
-                result.pose_landmarks, 
-                smoothed
-            )
-            self.prev_pose_landmarks = smoothed
-            self.last_pose = result.pose_landmarks
-            self.pose_miss_counter = 0
+    # -------------------------------
+    # Hand detection & drawing
+    # -------------------------------
+    def hand_tracking(self):
+        result = self.hands.process(self.frame_rgb)
 
-            self.mp_drawing.draw_landmarks(
-                self.frame, result.pose_landmarks,
-                mp.solutions.holistic.POSE_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(
-                    color=(0, 255, 0), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
-                self.mp_drawing.DrawingSpec(
-                    color=(255, 0, 0), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
-            )
-        else:
-            if self.last_pose:
-                self.pose_miss_counter += 1
-                if self.pose_miss_counter < 5:
-                    self.mp_drawing.draw_landmarks(
-                        self.frame, 
-                        self.last_pose, 
-                        mp.solutions.holistic.POSE_CONNECTIONS
-                    )
+        if not result.multi_hand_landmarks:
+            return
 
-        if result.left_hand_landmarks:
-            smoothed = self.smooth_landmarks(
-                result.left_hand_landmarks.landmark,
-                self.prev_left_hand_landmarks
-            )
-            result.left_hand_landmarks = self.apply_smoothed_to_proto(
-                result.left_hand_landmarks, 
-                smoothed
-            )
-            self.prev_left_hand_landmarks = smoothed
-            self.last_left_hand = result.left_hand_landmarks
-            self.left_hand_miss_counter = 0
+        for hand_lms, hand_info in zip(result.multi_hand_landmarks, result.multi_handedness):
+            label = hand_info.classification[0].label  # "Left" or "Right"
 
-            self.mp_drawing.draw_landmarks(
-                self.frame, result.left_hand_landmarks,
-                mp.solutions.holistic.HAND_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(
-                    color=(0, 255, 255), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
-                self.mp_drawing.DrawingSpec(
-                    color=(0, 0, 255), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
-            )
-        else:
-            if self.last_left_hand:
-                self.left_hand_miss_counter += 1
-                # if self.left_hand_miss_counter < 5:
-                #     self.mp_drawing.draw_landmarks(
-                #         self.frame, 
-                #         self.last_left_hand, 
-                #         mp.solutions.holistic.HAND_CONNECTIONS
-                #     )
+            if label == "Left":
+                smoothed = self.smooth_landmarks(hand_lms.landmark, self.prev_left_hand)
+                self.prev_left_hand = smoothed
+            else:
+                smoothed = self.smooth_landmarks(hand_lms.landmark, self.prev_right_hand)
+                self.prev_right_hand = smoothed
 
-        if result.right_hand_landmarks:
-            smoothed = self.smooth_landmarks(
-                result.right_hand_landmarks.landmark,
-                self.prev_right_hand_landmarks
-            )
-            result.right_hand_landmarks = self.apply_smoothed_to_proto(
-                result.right_hand_landmarks, 
-                smoothed
-            )
-            self.prev_right_hand_landmarks = smoothed
-            self.last_right_hand = result.right_hand_landmarks
-            self.right_hand_miss_counter = 0
+            # Apply smoothing
+            hand_lms = self.apply_smoothed(hand_lms, smoothed)
 
-            self.mp_drawing.draw_landmarks(
-                self.frame, result.right_hand_landmarks,
-                mp.solutions.holistic.HAND_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(
-                    color=(0, 255, 255), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
-                self.mp_drawing.DrawingSpec(
-                    color=(0, 0, 255), 
-                    thickness=2, 
-                    circle_radius=2
-                ),
+            # Draw
+            self.drawer.draw_landmarks(
+                self.frame, hand_lms,
+                mp.solutions.hands.HAND_CONNECTIONS,
+                self.drawer.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2),
+                self.drawer.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
             )
-        else:
-            if self.last_right_hand:
-                self.right_hand_miss_counter += 1
-                # if self.right_hand_miss_counter < 5:
-                #     self.mp_drawing.draw_landmarks(
-                #         self.frame, 
-                #         self.last_right_hand, 
-                #         mp.solutions.holistic.HAND_CONNECTIONS
-                #     )
 
+
+    # -------------------------------
+    # Gesture recognition
+    # -------------------------------
     def gesture_tracking(self, flip_hands=True):
         mp_image = mp.Image(
-            image_format=mp.ImageFormat.SRGB, 
+            image_format=mp.ImageFormat.SRGB,
             data=self.frame_rgb
         )
+
         timestamp_ms = int(self.frame_counter * 1000 / self.fps)
-        result = self.gesture_recognizer.recognize_for_video(
-            mp_image, 
-            timestamp_ms
-        )
+        result = self.gesture_recognizer.recognize_for_video(mp_image, timestamp_ms)
 
-        if result.gestures and result.handedness:
-            for gesture_list, handedness_list in zip(result.gestures, 
-                                                     result.handedness
-                                                     ):
-                gesture = gesture_list[0]
-                handedness = handedness_list[0]
+        if not (result.gestures and result.handedness):
+            return
 
-                gesture_name = gesture.category_name
-                score = gesture.score
-                hand_label = handedness.category_name
+        for gesture_list, handedness_list in zip(result.gestures, result.handedness):
+            gesture = gesture_list[0]
+            handedness = handedness_list[0]
 
-                if flip_hands:
-                    if hand_label == "Left":
-                        hand_label = "Right"
-                    elif hand_label == "Right":
-                        hand_label = "Left"
+            gesture_name = gesture.category_name
+            score = gesture.score
+            hand_label = handedness.category_name  # "Left" / "Right"
 
-                if score < 0.7:
-                    continue
+            if flip_hands:
+                hand_label = "Right" if hand_label == "Left" else "Left"
 
-                if hand_label == "Left":
-                    if gesture_name != self.last_left:
-                        self.left_stable_counter = 0
-                    else:
-                        self.left_stable_counter += 1
-                        if self.left_stable_counter > 3:
-                            self.left_gesture = gesture_name
-                    self.last_left = gesture_name
+            if score < 0.7:
+                continue
+
+            if hand_label == "Left":
+                if gesture_name != self.last_left:
+                    self.left_stable_counter = 0
                 else:
-                    if gesture_name != self.last_right:
-                        self.right_stable_counter = 0
-                    else:
-                        self.right_stable_counter += 1
-                        if self.right_stable_counter > 3:
-                            self.right_gesture = gesture_name
-                    self.last_right = gesture_name
+                    self.left_stable_counter += 1
+                    if self.left_stable_counter > 3:
+                        self.left_gesture = gesture_name
+                self.last_left = gesture_name
 
-                # print(f"{hand_label} hand: {gesture_name} ({score:.2f})")
+            else:
+                if gesture_name != self.last_right:
+                    self.right_stable_counter = 0
+                else:
+                    self.right_stable_counter += 1
+                    if self.right_stable_counter > 3:
+                        self.right_gesture = gesture_name
+                self.last_right = gesture_name
 
 
-
+    # -------------------------------
+    # Main update
+    # -------------------------------
     def run_tracking(self, frame):
         self.frame = frame
         self.frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self.frame_counter += 1
 
-        self.holistic_tracking()
+        self.hand_tracking()
         self.gesture_tracking()
-        return frame
+
+        return self.frame
