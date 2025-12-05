@@ -15,7 +15,7 @@ IMAGE_PUB_TOPIC = "jordansProject/detections/image"
 IMAGE_SCALE_PERCENT = 100
 FPS = 30.0
 PATIENCE = 3
-TRAILING_DISTANCE = 1.0
+TRAILING_DISTANCE = 0.5
 
 class FollowerNode(Node):
     def __init__(self):

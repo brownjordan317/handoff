@@ -109,8 +109,8 @@ class PersonTracking():
             if dist <= thr:
                 self.mc_number = 0
             else:
-                self.mc_number = 0.3 + 1 * ((dist - thr) / (max_val - thr))
-                self.mc_number = min(self.mc_number, 1.3)
+                self.mc_number = 0.5 + 1 * ((dist - thr) / (max_val - thr))
+                self.mc_number = min(self.mc_number, 1.5)
 
             if self.dist_x < 0:
                 self.turn_direction = "left"
@@ -230,7 +230,7 @@ class PersonTracking():
         return frame
 
 
-    def is_in_center(self, frame, center_x, center_y, margin=0.1):
+    def is_in_center(self, frame, center_x, center_y, margin=0.15):
         if not hasattr(self, "h") or not hasattr(self, "w"):
             self.h, self.w = frame.shape[:2]
         if not hasattr(self, "x_min"):

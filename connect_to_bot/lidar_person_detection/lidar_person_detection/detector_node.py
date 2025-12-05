@@ -23,7 +23,7 @@ ANGLE_MAX = np.deg2rad(ANGLE_MAX_DEG)
 # New: Patience Filter Settings
 PATIENCE_IN = 3      # must appear in 3 consecutive frames
 PATIENCE_OUT = 5     # removed after missing for 5 frames
-CELL_SIZE = 0.5      # meters – merge detections into spatial bins
+CELL_SIZE = 0.75      # meters – merge detections into spatial bins
 
 
 class DetectorNode(Node):
