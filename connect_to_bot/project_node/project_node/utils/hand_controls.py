@@ -64,3 +64,6 @@ class HandControls():
                 self.call_counter += 1
             # print("Drive command: STOP")
             self.drive_command = "STOP"
+
+        if left_hand =="L" and right_hand == "L":
+            self.drive_command = "Unlock"

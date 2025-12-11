@@ -264,6 +264,23 @@ class PersonTracking():
 
         self.drive_command = self.hand_controls.drive_command
         return frame
+    
+    def unlock(self):
+        """Forcefully unlock the current locked target and reset all state."""
+        self.locked_id = None
+        self.state = "unlocked"
+        self.missing_frames = 0
+        self.center_counts = {}
+
+        self.turn_direction = None
+        self.mc_number = 0
+        self.dist_x = None
+
+        # Reset pose + hand controls state
+        self.pose_tracker.left_gesture = None
+        self.pose_tracker.right_gesture = None
+        self.hand_controls.drive_command = None
+
 
 if __name__ == '__main__':
     detector = PersonTracking(100, 0.50, 15, 3)

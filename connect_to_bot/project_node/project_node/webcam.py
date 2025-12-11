@@ -17,6 +17,7 @@ class WebcamPublisher(Node):
 
     def timer_callback(self):
         ret, frame = self.cap.read()
+        frame = cv2.resize(frame, (320, 240), interpolation=cv2.INTER_AREA)
         if not ret:
             self.get_logger().warn("Failed to grab frame")
             return
