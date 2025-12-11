@@ -39,6 +39,8 @@ class PersonTracking():
         self.hand_controls = HandControls()
         self.drive_command = None
 
+        
+
     def draw_boxj(self, frame, track_id, box, color):
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         conf = float(box.conf[0])

@@ -7,6 +7,8 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseArray
+from std_msgs.msg import String
+
 import numpy as np
 
 IMAGE_RECV_TOPIC = "/camera/image_raw"
@@ -52,6 +54,10 @@ class FollowerNode(Node):
         self.motion_pub = self.create_publisher(Twist, 
                                                    '/cmd_vel', 
                                                    10)
+        
+        self.hand_detecion_pub = self.create_publisher(String,
+                                                   topic = "hand_detections",
+                                                   qos_profile = 1)
 
     def initialize_ros2(self):
         self.create_subs()
@@ -137,6 +143,10 @@ class FollowerNode(Node):
                 )
             
             twist_msg = Twist()
+
+            self.hand_detecion_pub.publish(
+                String(data=f"Left: {self.detector.pose_tracker.left_gesture}, Right: {self.detector.pose_tracker.right_gesture}")
+                )
 
             if self.detector.turn_direction is not None \
                 and self.detector.mc_number is not None \
