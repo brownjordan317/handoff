@@ -1,7 +1,11 @@
-
-
-commands = ["VV"]
-
+"""
+This code defines a class `HandControls` that processes hand positions to 
+generate drive commands for a robot. The `call_controls` method takes the 
+current positions of the left and right hands as input and generates a drive 
+command based on the positions. The drive commands are "FORWARD", "LEFT", 
+"RIGHT", and "STOP". Additionally, if both hands are in the "L" position, 
+the drive command is set to "Unlock".
+"""
 
 class HandControls():
     def __init__(self):
@@ -14,6 +18,16 @@ class HandControls():
         pass
 
     def call_controls(self, left_hand, right_hand):
+        """
+        Determine the drive command based on the current hand positions.
+
+        Args:
+            left_hand (str): The current position of the left hand.
+            right_hand (str): The current position of the right hand.
+
+        Returns:
+            str: The drive command to be sent to the robot.
+        """
 
         # print(f"Left hand: {left_hand}, Right hand: {right_hand}")
 

@@ -3,9 +3,12 @@ import cv2
 import numpy as np
 import json
 
+POSEMODEL = \
+    "/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task"
+
 class PoseTracking:
     def __init__(self, fps=30):
-        # --- MediaPipe Hands Only ---
+        # MediaPipe Hands Only
         self.hands = mp.solutions.hands.Hands(
             static_image_mode=False,
             max_num_hands=2,
@@ -15,7 +18,7 @@ class PoseTracking:
         )
         self.drawer = mp.solutions.drawing_utils
 
-        # --- Gesture recognizer ---
+        # Gesture recognizer 
         BaseOptions = mp.tasks.BaseOptions
         GestureRecognizer = mp.tasks.vision.GestureRecognizer
         GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
@@ -23,7 +26,7 @@ class PoseTracking:
 
         self.gesture_options = GestureRecognizerOptions(
             base_options=BaseOptions(
-                model_asset_path="/home/rosdev/ros2_ws/src/project_node/project_node/utils/asl_letters_only.task",
+                model_asset_path=POSEMODEL,
                 delegate=BaseOptions.Delegate.GPU,
             ),
             running_mode=VisionRunningMode.VIDEO,
@@ -52,11 +55,20 @@ class PoseTracking:
         self.left_stable_counter = 0
         self.right_stable_counter = 0
 
-
-    # -------------------------------
-    # Landmark smoothing
-    # -------------------------------
     def smooth_landmarks(self, landmarks, prev):
+        """
+        Smooth hand landmarks by applying a weighted average between 
+        the current and previous set of landmarks.
+
+        Args:
+            landmarks (list[mediapipe.framework.Landmark]):
+                The current set of hand landmarks.
+            prev (list[tuple]):
+                The previous set of hand landmarks.
+
+        Returns:
+            list[tuple]: The smoothed set of hand landmarks.
+        """
         coords = np.array([(lm.x, lm.y, lm.z) for lm in landmarks])
         if prev is not None:
             coords = (self.smoothing_factor * np.array(prev) +
@@ -64,28 +76,55 @@ class PoseTracking:
         return coords.tolist()
 
     def apply_smoothed(self, proto, coords):
+        """
+        Apply smoothed hand landmarks to a mediapipe hand landmarks proto.
+
+        Args:
+            proto (mediapipe.framework.LandmarkList):
+                The mediapipe hand landmarks proto to apply smoothed landmarks 
+                to.
+            coords (list[tuple]):
+                The smoothed hand landmarks coordinates.
+
+        Returns:
+            mediapipe.framework.LandmarkList: The mediapipe hand landmarks 
+            proto with smoothed landmarks.
+        """
         for i, lm in enumerate(proto.landmark):
             lm.x, lm.y, lm.z = coords[i]
         return proto
 
 
-    # -------------------------------
-    # Hand detection & drawing
-    # -------------------------------
     def hand_tracking(self):
+        """
+        Smooth hand landmarks and draw them on the frame.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         result = self.hands.process(self.frame_rgb)
 
         if not result.multi_hand_landmarks:
             return
 
-        for hand_lms, hand_info in zip(result.multi_hand_landmarks, result.multi_handedness):
+        for hand_lms, hand_info in zip(result.multi_hand_landmarks, 
+                                       result.multi_handedness):
             label = hand_info.classification[0].label  # "Left" or "Right"
 
             if label == "Left":
-                smoothed = self.smooth_landmarks(hand_lms.landmark, self.prev_left_hand)
+                smoothed = self.smooth_landmarks(
+                    hand_lms.landmark, 
+                    self.prev_left_hand
+                )
                 self.prev_left_hand = smoothed
             else:
-                smoothed = self.smooth_landmarks(hand_lms.landmark, self.prev_right_hand)
+                smoothed = self.smooth_landmarks(
+                    hand_lms.landmark,  
+                    self.prev_right_hand
+                )
                 self.prev_right_hand = smoothed
 
             # Apply smoothing
@@ -95,27 +134,47 @@ class PoseTracking:
             self.drawer.draw_landmarks(
                 self.frame, hand_lms,
                 mp.solutions.hands.HAND_CONNECTIONS,
-                self.drawer.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2),
-                self.drawer.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
+                self.drawer.DrawingSpec(
+                    color=(0, 255, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
+                self.drawer.DrawingSpec(
+                    color=(0, 0, 255), 
+                    thickness=2, 
+                    circle_radius=2
+                ),
             )
 
 
-    # -------------------------------
-    # Gesture recognition
-    # -------------------------------
-    def gesture_tracking(self, flip_hands=True):
+    def gesture_tracking(self, 
+                         flip_hands=True):
+        """
+        Recognize gestures on the frame.
+
+        Args:
+            flip_hands (bool, optional): If True, swap the labels of the left 
+            and right hands. Defaults to True.
+
+        Returns:
+            None
+        """
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
             data=self.frame_rgb
         )
 
         timestamp_ms = int(self.frame_counter * 1000 / self.fps)
-        result = self.gesture_recognizer.recognize_for_video(mp_image, timestamp_ms)
+        result = self.gesture_recognizer.recognize_for_video(
+            mp_image, 
+            timestamp_ms
+        )
 
         if not (result.gestures and result.handedness):
             return
 
-        for gesture_list, handedness_list in zip(result.gestures, result.handedness):
+        for gesture_list, handedness_list in zip(result.gestures, 
+                                                 result.handedness):
             gesture = gesture_list[0]
             handedness = handedness_list[0]
 
@@ -147,11 +206,17 @@ class PoseTracking:
                         self.right_gesture = gesture_name
                 self.last_right = gesture_name
 
-
-    # -------------------------------
-    # Main update
-    # -------------------------------
     def run_tracking(self, frame):
+        """
+        Run pose tracking and gesture recognition on the given frame.
+
+        Args:
+            frame (numpy.ndarray): BGR frame from the camera.
+
+        Returns:
+            numpy.ndarray: BGR frame with pose tracking and gesture 
+            recognition results.
+        """
         self.frame = frame
         self.frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self.frame_counter += 1

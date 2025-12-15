@@ -17,6 +17,39 @@ This project presents the design and implementation of a low-cost, human-followi
 ## Construction of the Robot
 For construction of the robot please refer to the GitHub repository hosted by [John Merila](github.com/JohnMerila/UND_EDUBot). The repository covers all required hardware and software components. It also has instructions for assembly and configuration of the robot along with a parts list.
 
+## Running the Programs
+
+To run the program first ensure the robot is running according to the [instructions](github.com/JohnMerila/UND_EDUBot#running-the-programs). Also ensure a camera driver of some sort is running. A webcam driver is included in the repository. 
+
+With the robots controller scripts running, open this repository the 'connect_to_bot' folder and then use VS codes docker extension to open the provided container. This can be done by presing **Ctrl + Shift + P** and then searching for *Docker: Reopen in Container*.
+
+Once in the container run the following command:
+
+```bash
+# Optional run camera driver
+
+colon build --packages-select project_node --symlink-install
+source install/setup.bash
+ros2 run project_node webcam
+```
+
+```bash
+# Terminal One
+# This terminal will activate DR-SPAAM person
+colcon build --packages-select lidar_person_detection --symlink-install
+source install/setup.bash
+ros2 run lidar_person_detection detector_node
+```
+
+```bash
+# Terminal Two
+# This terminal will be used to run the ROS2 node for person tracking and gesture recognition
+
+colcon build --packages-select project_node --symlink-install
+source install/setup.bash
+ros2 launch project_node recog
+```
+
 ## Target Following
 
 The robot is able to follow a target by using the following strategy:

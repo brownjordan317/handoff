@@ -28,7 +28,7 @@ class PersonTracking():
         self.fps = fps
         self.lock_frames = patience * self.fps  # 2 seconds to lock
         self.patience = patience * self.fps
-        self.missing_frames = 0   # counts how many frames locked target is missing
+        self.missing_frames = 0   # counts num frames locked target is missing
         self.state = "unlocked"
 
         self.class_IDS = [0]  # person only
@@ -42,6 +42,24 @@ class PersonTracking():
         
 
     def draw_boxj(self, frame, track_id, box, color):
+        """
+        Draw bounding box with confidence and ID on frame.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            The frame to draw on.
+        track_id : int
+            The ID of the person.
+        box : ultralytics.YOLO.Box
+            The bounding box of the person.
+        color : tuple
+            The color to draw the bounding box with.
+
+        Returns
+        -------
+        None
+        """
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         conf = float(box.conf[0])
 
@@ -64,6 +82,19 @@ class PersonTracking():
                         2)
 
     def resize_frame(self, frame):
+        """
+        Resize a frame by the given scale percentage.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            The frame to resize.
+
+        Returns
+        -------
+        numpy.ndarray
+            The resized frame.
+        """
         frame = cv2.flip(frame, 1)
         width = int(frame.shape[1] * self.scale_percent / 100)
         height = int(frame.shape[0] * self.scale_percent / 100)
@@ -72,6 +103,19 @@ class PersonTracking():
                           interpolation=cv2.INTER_AREA)
 
     def find_people(self, frame):
+        """
+        Find people in a frame.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            The frame to find people in.
+
+        Returns
+        -------
+        ultralytics.YOLO.Boxes
+            The bounding boxes of the people found in the frame.
+        """
         results = self.model.track(
             frame,
             conf=self.conf_level,
@@ -85,6 +129,12 @@ class PersonTracking():
         return results[0].boxes
 
     def check_lock(self, frame, center_x, center_y, track_id):
+        """
+        Check if the target is in the center of the frame, and if so, 
+        increase the count of the target being in the center.
+        If the count is greater than or equal to the lock frames, 
+        lock onto the target.
+        """
         if self.is_in_center(frame, center_x, center_y):
             self.center_counts[track_id] = self.center_counts.get(track_id, 
                                                                   0) + 1
@@ -95,6 +145,26 @@ class PersonTracking():
             self.locked_id = track_id
 
     def handle_locking(self, frame, center_x, center_y, track_id):
+        """
+        Handle the locking process.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            The frame to check for locking.
+        center_x : int
+            The x-coordinate of the center of the person.
+        center_y : int
+            The y-coordinate of the center of the person.
+        track_id : int
+            The ID of the person.
+
+        Returns
+        -------
+        str
+            The state of the person, either "unlocked", "candidate", 
+            or "locked".
+        """
         if self.locked_id is None:
             if self.is_in_center(frame, center_x, center_y):
                 self.check_lock(frame, center_x, center_y, track_id)
@@ -134,6 +204,25 @@ class PersonTracking():
     def expand_box(self, box, frame_shape, 
                    expand_x_ratio=0.05, 
                    expand_y_ratio=0.1):
+        """
+        Expand a bounding box around a person by a certain ratio.
+
+        Parameters
+        ----------
+        box : tuple of 4 ints
+            The bounding box coordinates (x1, y1, x2, y2).
+        frame_shape : tuple of 3 ints
+            The shape of the frame (h, w, _).
+        expand_x_ratio : float, optional
+            The ratio to expand the box in the x direction. Defaults to 0.05.
+        expand_y_ratio : float, optional
+            The ratio to expand the box in the y direction. Defaults to 0.1.
+
+        Returns
+        -------
+        tuple of 4 ints
+            The expanded bounding box coordinates (x1, y1, x2, y2).
+        """
         h, w, _ = frame_shape
         x1, y1, x2, y2 = box
         box_w, box_h = x2 - x1, y2 - y1
@@ -148,11 +237,47 @@ class PersonTracking():
         return x1, y1, x2, y2
 
     def apply_target_mask(self, frame, crop, box):
+        """
+        Apply the target mask to the given frame.
+
+        Parameters
+        ----------
+        frame : ndarray
+            The frame to apply the mask to.
+        crop : ndarray
+            The target mask to apply.
+        box : tuple of 4 ints
+            The bounding box coordinates (x1, y1, x2, y2).
+
+        Returns
+        -------
+        ndarray
+            The frame with the target mask applied.
+        """
         x1, y1, x2, y2 = box
         frame[y1:y2, x1:x2] = crop
         return frame
 
     def process_locked_target(self, frame, box):
+        """
+        Process a locked target by expanding the bounding box, 
+        cropping the frame according to the expanded box, running 
+        pose tracking on the cropped frame, and then applying the 
+        resulting target mask to the original frame.
+
+        Parameters
+        ----------
+        frame : ndarray
+            The frame to process the locked target in.
+        box : tuple of 4 ints
+            The bounding box coordinates (x1, y1, x2, y2) of the locked 
+            target.
+
+        Returns
+        -------
+        ndarray
+            The frame with the target mask applied.
+        """
         expanded_box = self.expand_box(box, frame.shape)
         x1, y1, x2, y2 = expanded_box
 
@@ -163,6 +288,26 @@ class PersonTracking():
 
 
     def update_lock_state(self, seen_ids):
+        """
+        Update the lock state of the robot based on the seen IDs.
+
+        Parameters
+        ----------
+        seen_ids : set of ints
+            The set of IDs of the people seen in the current frame.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        * If the locked ID is not in the seen IDs, increment the missing 
+          frames counter.
+        * If the missing frames counter reaches the patience, unlock the 
+          robot and reset the counter.
+        * If the locked ID is seen again, reset the missing frames counter.
+        """
         if self.locked_id is not None:
             if self.locked_id not in seen_ids:
                 self.missing_frames += 1
@@ -176,6 +321,26 @@ class PersonTracking():
                 self.missing_frames = 0
 
     def draw_detections(self, frame, boxes_obj):
+        """
+        Draw bounding boxes around the detected people on the frame.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            The frame to draw on.
+        boxes_obj : list of ultralytics.YOLO.Box
+            The list of bounding boxes of the detected people.
+
+        Returns
+        -------
+        numpy.ndarray
+            The frame with bounding boxes drawn on it.
+
+        Notes
+        -----
+        * Case 1: Not locked yet draw all boxes, update lock state
+        * Case 2: Locked process ONLY the locked ID
+        """
         seen_ids = set()
 
         # Case 1: Not locked yet draw all boxes, update lock state
@@ -233,6 +398,27 @@ class PersonTracking():
 
 
     def is_in_center(self, frame, center_x, center_y, margin=0.15):
+        """
+        Check if a point (center_x, center_y) is within the center region of 
+        a frame.
+
+        The center region is defined as a rectangle with the following bounds:
+        - x_min = frame width * (0.5 - margin / 2)
+        - x_max = frame width * (0.5 + margin / 2)
+        - y_min = frame height * (0.5 - margin / 2)
+        - y_max = frame height * (0.5 + margin / 2)
+
+        Args:
+            frame (numpy.ndarray): BGR frame from the camera.
+            center_x (int): x-coordinate of the point to check.
+            center_y (int): y-coordinate of the point to check.
+            margin (float, optional): margin from the frame center to define 
+            the center region. Defaults to 0.15.
+
+        Returns:
+            bool: True if the point is within the center region, False 
+            otherwise.
+        """
         if not hasattr(self, "h") or not hasattr(self, "w"):
             self.h, self.w = frame.shape[:2]
         if not hasattr(self, "x_min"):
@@ -247,6 +433,15 @@ class PersonTracking():
                self.y_min <= center_y <= self.y_max
 
     def detect_pedestrians(self, frame):
+        """
+        Detect pedestrians in the given frame.
+
+        Args:
+            frame (numpy.ndarray): BGR frame from the camera.
+
+        Returns:
+            numpy.ndarray: BGR frame with detected pedestrians.
+        """
         frame = self.resize_frame(frame)
         if not hasattr(self, 'image_center'):
             self.image_center = (frame.shape[1] // 2, 
@@ -268,7 +463,10 @@ class PersonTracking():
         return frame
     
     def unlock(self):
-        """Forcefully unlock the current locked target and reset all state."""
+        """
+        Reset the state of the tracker to "unlocked" and reset all relevant 
+        parameters.
+        """
         self.locked_id = None
         self.state = "unlocked"
         self.missing_frames = 0

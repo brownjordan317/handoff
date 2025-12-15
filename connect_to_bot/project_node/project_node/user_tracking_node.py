@@ -32,6 +32,9 @@ class FollowerNode(Node):
         self.target = None
 
     def create_subs(self):
+        """
+        Create ROS2 subscriptions to the image and pose array topics.
+        """
         self.image_sub = \
             self.create_subscription(Image, 
                                      topic = IMAGE_RECV_TOPIC, 
@@ -47,6 +50,10 @@ class FollowerNode(Node):
                                         rclpy.qos.qos_profile_sensor_data)
 
     def create_pubs(self):
+        """
+        Create ROS2 publishers to the predicted image, motion, and hand 
+        detection topics.
+        """
         self.pred_image_pub = self.create_publisher(Image,
                                                    topic = IMAGE_PUB_TOPIC,
                                                    qos_profile = 1)
@@ -60,6 +67,16 @@ class FollowerNode(Node):
                                                    qos_profile = 1)
 
     def initialize_ros2(self):
+        """
+        Initialize ROS2 subscriptions and publishers, and start the matching 
+        timer.
+
+        This method creates subscriptions to the image and pose array topics,
+        and publishers to the predicted image, motion, and hand detection 
+        topics. It also starts the matching timer, which runs the matching 
+        algorithm at a rate of {FPS} Hz.
+
+        """
         self.create_subs()
         self.create_pubs()
         
@@ -67,22 +84,69 @@ class FollowerNode(Node):
                                                 callback = self.run)
         
     def intitialize_detector(self):
+        """
+        Initialize the person tracking detector with the given parameters.
+
+        Parameters
+        ----------
+        scale_percent : int
+            The scale percentage of the image to detect people.
+        conf_level : float
+            The confidence level of the detector.
+        fps : int
+            The frames per second of the detector.
+        patience : int
+            The number of frames to wait for a person to be detected before
+            locking on to the person.
+
+        Returns
+        -------
+        None
+        """
         self.detector = PersonTracking(scale_percent = IMAGE_SCALE_PERCENT, 
                                         conf_level = 0.25,
                                         fps = FPS,
                                         patience = PATIENCE)
 
     def set_image(self, msg: Image):
+        """
+        Set the current image to the given ROS2 Image message.
+
+        Parameters
+        ----------
+        msg : Image
+            The ROS2 Image message to set as the current image.
+
+        Returns
+        -------
+        None
+        """
         cv_image = self.bridge.imgmsg_to_cv2(msg, 
                                              desired_encoding = "bgr8")
         self.image = cv_image
 
     def calc_best_target(self, msg):
         """
-        Compute the closest target within the angle window [165°, 205°]
-        directly from PoseArray msg. Saves result to self.target.
-        """
+        Compute the best target based on the given poses.
 
+        If no poses are given, then the target is set to None.
+        Otherwise, the function extracts the x and y coordinates of the poses, 
+        computes the angles in degrees (0–360), and computes the distances of 
+        the poses from the origin.The function then masks out the detections 
+        that are not within the angle window of 165 to 205 degrees. If no 
+        detections are left after masking, then the target is set to None. 
+        Otherwise, the function finds the index of the closest target within 
+        the mask, and saves the final target pose.
+
+        Parameters
+        ----------
+        msg : PoseArray
+            The ROS2 PoseArray message containing the poses of the detections.
+
+        Returns
+        -------
+        None
+        """
         if len(msg.poses) == 0:
             self.target = None
             return
@@ -114,12 +178,30 @@ class FollowerNode(Node):
 
     def set_pose_array(self, msg: PoseArray):
         """
-        Receive DR-SPAAM LiDAR person detections and compute best target.
+        Set the last pose array and calculate the best target based on the 
+        given poses.
+
+        Parameters
+        ----------
+        msg : PoseArray
+            The ROS2 PoseArray message containing the poses of the detections.
         """
         self.last_pose_array = msg
         self.calc_best_target(msg)
 
     def publish_pred_image(self, image):
+        """
+        Publish the detected image to the predicted image topic.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            The detected image to publish.
+
+        Returns
+        -------
+        None
+        """
         msg = self.bridge.cv2_to_imgmsg(image, 
                                         encoding = "bgr8")
         self.pred_image_pub.publish(msg)
@@ -145,8 +227,11 @@ class FollowerNode(Node):
             twist_msg = Twist()
 
             self.hand_detecion_pub.publish(
-                String(data=f"Left: {self.detector.pose_tracker.left_gesture}, Right: {self.detector.pose_tracker.right_gesture}")
+                String(
+                    data=f"Left: {self.detector.pose_tracker.left_gesture}" + 
+                    f", Right: {self.detector.pose_tracker.right_gesture}"
                 )
+            )
 
             if self.detector.turn_direction is not None \
                 and self.detector.mc_number is not None \
