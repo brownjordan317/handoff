@@ -2,6 +2,8 @@
  
 This project presents the design and implementation of a low-cost, human-following robot capable of interpreting hand gestures to control its behavior. The system integrates multiple sensing modalities, including a forward-facing camera for person detection, a 2D LiDAR for distance estimation and obstacle avoidance, and vision-based human pose tracking for gesture recognition. YOLOv12 is employed for real-time person detection, while Google MediaPipe facilitates hand and body gesture recognition, allowing intuitive and responsive robot control. Sensor fusion of RGB and LiDAR data ensures accurate tracking even under partial occlusion or lateral movement. Gesture commands are mapped to key robot actions such as driving, target switching, and state control, enabling safe and interactive operation. The platform leverages affordable hardware, including a Raspberry Pi 5, a Pi Camera, and an RPLiDAR sensor, providing a cost-effective alternative to commercial systems. Experimental results demonstrate reliable target tracking, effective gesture-based control, and robust operation in dynamic environments, highlighting the system’s potential for applications in assistive robotics, interactive robotic pets, and automated service platforms. 
 
+\***A full write up on this project can be seen [here](readme_files/handoff_report.pdf).**
+
 ## Robot Hardware Specifications
 
 | **Subsystem** | **Component**           | **Specification**                  |
