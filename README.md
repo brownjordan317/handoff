@@ -23,11 +23,11 @@ To run the program first ensure the robot is running according to the [instructi
 
 With the robots controller scripts running, open this repository the 'connect_to_bot' folder and then use VS codes docker extension to open the provided container. This can be done by presing **Ctrl + Shift + P** and then searching for *Docker: Reopen in Container*.
 
-Once in the container run the following command:
+Once in the container run the following commands:
 
 ```bash
+# Terminal Zero
 # Optional run camera driver
-
 colon build --packages-select project_node --symlink-install
 source install/setup.bash
 ros2 run project_node webcam
