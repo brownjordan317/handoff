@@ -1,3 +1,9 @@
+"""
+DR-SPAAM and how to use it with ROS 2 for real-time person detection using 
+LiDAR data isprovided in its own github repository at:
+ https://github.com/VisualComputingInstitute/2D_lidar_person_detection
+"""
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -49,8 +55,16 @@ class DetectorNode(Node):
         )
 
         # Publishers
-        self.pose_pub = self.create_publisher(PoseArray, "/person_detections", 10)
-        self.marker_pub = self.create_publisher(MarkerArray, "/person_markers", 10)
+        self.pose_pub = self.create_publisher(
+            PoseArray, 
+            "/person_detections", 
+            10
+        )
+        self.marker_pub = self.create_publisher(
+            MarkerArray, 
+            "/person_markers", 
+            10
+        )
 
         # New: dictionary for stable detection filtering
         self.stable_detections = {}  # key: (ix,iy), value: dict
@@ -60,9 +74,32 @@ class DetectorNode(Node):
 
     # ------------------ Helpers ------------------
     def scan_callback(self, msg):
+        """
+        Scan callback function.
+
+        Args:
+            msg (LaserScan): Laser scan message received from the subscriber.
+        """
         self.laser_scan = msg
 
     def angle_in_range(self, angle, amin, amax):
+        """
+        Check if an angle is within a range.
+
+        Parameters
+        ----------
+        angle : float
+            Angle to check
+        amin : float
+            Minimum angle of the range
+        amax : float
+            Maximum angle of the range
+
+        Returns
+        -------
+        bool
+            True if the angle is in the range, False otherwise
+        """
         angle = np.arctan2(np.sin(angle), np.cos(angle))
         amin = np.arctan2(np.sin(amin), np.cos(amin))
         amax = np.arctan2(np.sin(amax), np.cos(amax))
@@ -72,15 +109,54 @@ class DetectorNode(Node):
         return angle >= amin or angle <= amax
 
     def convert_xy_to_polar(self, dets_xy):
+        """
+        Convert detections in xy coordinates to polar coordinates.
+
+        Parameters
+        ----------
+        dets_xy : numpy.ndarray
+            Array of shape (N, 2) containing the xy coordinates of N 
+            detections.
+
+        Returns
+        -------
+        r : numpy.ndarray
+            Array of shape (N,) containing the radial distances of the 
+            detections.
+        theta : numpy.ndarray
+            Array of shape (N,) containing the angles of the detections.
+        """
         r = np.linalg.norm(dets_xy, axis=1)
         theta = np.arctan2(dets_xy[:, 1], dets_xy[:, 0])
         return r, theta
 
     def grid_key(self, x, y):
+        """
+        Convert a point in the xy plane to a grid key.
+
+        Parameters
+        ----------
+        x : float
+            The x coordinate of the point.
+        y : float
+            The y coordinate of the point.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the grid key (x, y) of the point.
+        """
         return (int(x / CELL_SIZE), int(y / CELL_SIZE))
 
     # ------------------ Main Loop ------------------
     def main_callback(self):
+        """
+        Main callback function for processing new laser scan data.
+
+        This function will be called every time a new laser scan is received.
+        It is responsible for running the detector, tracking the hits and 
+        misses, and publishing the final filtered pose array output.
+        """
         if self.laser_scan is None:
             return
 
