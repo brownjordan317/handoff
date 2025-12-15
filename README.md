@@ -7,7 +7,7 @@ This project presents the design and implementation of a low-cost, human-followi
 | **Subsystem** | **Component**           | **Specification**                  |
 |---------------|--------------------------|------------------------------------|
 | **Compute**   | Raspberry Pi 5           | 8 GB RAM, Active Cooler            |
-| **Lidar**     | YDLIDAR / Generic        | 2D Laser Scanner (360°)            |
+| **Lidar**     | RPLidar A1        | 2D Laser Scanner (360°)            |
 | **Vision**    | Pi Camera Module 3       | V2 (8 MP), CSI Interface           |
 | **Actuation** | ServoCity Motors         | 163 RPM Mini Econ Gear             |
 | **Driver**    | Pololu Driver            | TB67H420FTG Dual Driver            |
