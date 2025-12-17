@@ -397,7 +397,7 @@ class PersonTracking():
         return frame
 
 
-    def is_in_center(self, frame, center_x, center_y, margin=0.15):
+    def is_in_center(self, frame, center_x, center_y, margin=0.25):
         """
         Check if a point (center_x, center_y) is within the center region of 
         a frame.

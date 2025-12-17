@@ -54,7 +54,7 @@
     "--ipc=host",
     "--pid=host",
     "--runtime=nvidia",
-    "--gpus=all",
-    "--device=/dev/video0:/dev/video0"
+    "--gpus=all"
+    // "--device=/dev/video0:/dev/video0"
   ]
 }

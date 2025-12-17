@@ -11,13 +11,13 @@ from std_msgs.msg import String
 
 import numpy as np
 
-IMAGE_RECV_TOPIC = "/camera/image_raw"
-# IMAGE_RECV_TOPIC = "/shiv_1/camera/image"
+# IMAGE_RECV_TOPIC = "/camera/image_raw"
+IMAGE_RECV_TOPIC = "/shiv_1/camera/image"
 IMAGE_PUB_TOPIC = "jordansProject/detections/image"
 IMAGE_SCALE_PERCENT = 100
 FPS = 30.0
 PATIENCE = 3
-TRAILING_DISTANCE = 0.5
+TRAILING_DISTANCE = 1.0
 
 class FollowerNode(Node):
     def __init__(self):
@@ -260,26 +260,26 @@ class FollowerNode(Node):
                         print("STOP")
                     self.motion_pub.publish(twist_msg)
 
-            if self.detector.hand_controls.drive_command is not None and \
-                self.detector.state == "locked":
-                drive_cmd = self.detector.hand_controls.drive_command
-                if drive_cmd == "Unlock":
-                    self.detector.unlock()
-                    self.detector.hand_controls.drive_command = None
-                    print("UNLOCKED")
-                    return
+            # if self.detector.hand_controls.drive_command is not None and \
+            #     self.detector.state == "locked":
+            #     drive_cmd = self.detector.hand_controls.drive_command
+            #     if drive_cmd == "Unlock":
+            #         self.detector.unlock()
+            #         self.detector.hand_controls.drive_command = None
+            #         print("UNLOCKED")
+            #         return
 
-                if drive_cmd == "FORWARD":
-                    twist_msg.linear.x = 0.5
-                elif drive_cmd == "LEFT":
-                    twist_msg.angular.z = 1.0
-                elif drive_cmd == "RIGHT":
-                    twist_msg.angular.z = -1.0
-                else:  # STOP or unrecognized command
-                    twist_msg.linear.x = 0.0
-                    twist_msg.angular.z = 0.0
+            #     if drive_cmd == "FORWARD":
+            #         twist_msg.linear.x = 0.5
+            #     elif drive_cmd == "LEFT":
+            #         twist_msg.angular.z = 1.0
+            #     elif drive_cmd == "RIGHT":
+            #         twist_msg.angular.z = -1.0
+            #     else:  # STOP or unrecognized command
+            #         twist_msg.linear.x = 0.0
+            #         twist_msg.angular.z = 0.0
                 
-                self.motion_pub.publish(twist_msg)
+                # self.motion_pub.publish(twist_msg)
                 
 
 def main(args=None):

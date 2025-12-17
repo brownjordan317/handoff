@@ -23,7 +23,7 @@ For construction of the robot please refer to the GitHub repository hosted by [J
 
 To run the program first ensure the robot is running according to the [instructions](github.com/JohnMerila/UND_EDUBot#running-the-programs). Also ensure a camera driver of some sort is running. A webcam driver is included in the repository. 
 
-With the robots controller scripts running, open this repository the 'connect_to_bot' folder and then use VS codes docker extension to open the provided container. This can be done by presing **Ctrl + Shift + P** and then searching for *Docker: Reopen in Container*.
+With the robots controller scripts running, open this repository to the 'connect_to_bot' folder and then use VS codes docker extension to open the provided container. This can be done by presing **Ctrl + Shift + P** and then searching for *Docker: Reopen in Container*.
 
 Once in the container run the following commands:
 
@@ -69,7 +69,7 @@ The robot is able to follow a target by using the following strategy:
 
 ![Linear Follower](readme_files/linear_following.gif)
 
-The robot will follow the target as long as it is in the field of view of the camera. If the target is not in the field of view of the camera, the robot will stop following the target.
+The robot will follow the target as long as it is in the field of view of the camera. If the target is not in the field of view of the camera, the robot will stop following the target. An extended length video of the robot following a target can be found [here](https://youtube.com/shorts/SUd7Qk7_9_w).
 
 ## Gesture Recognition
 
